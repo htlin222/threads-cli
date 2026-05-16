@@ -118,7 +118,7 @@ chars only when you need to show progress.
 ## Cloudflare Worker
 
 - Deployed URL is stored in `$THREADS_WORKER_BASE` in `.env` (gitignored). Don't paste the literal URL here.
-- Source: `cloudflare-worker/src/index.js`. Config: `cloudflare-worker/wrangler.toml`.
+- Source: `cloudflare-worker/src/index.js`. Config: `cloudflare-worker/wrangler.toml` (gitignored; copy from `wrangler.toml.example`).
 - **Don't redeploy** unless source/config changed. If needed: `make worker-deploy`.
 - KV namespace `THREADS_AUTH` stores OAuth codes keyed by `state` (TTL 10min).
 - Logs: `make worker-tail`.

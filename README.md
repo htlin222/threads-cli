@@ -15,7 +15,7 @@ insights, and look up locations.
 ├── Makefile               # human-friendly wrappers around threads.py
 ├── cloudflare-worker/     # Wrangler project: /callback stashes ?code= in KV; /poll returns it
 │   ├── src/index.js
-│   └── wrangler.toml
+│   └── wrangler.toml.example  # copy to wrangler.toml + fill in your KV id
 ├── .env                   # secrets + token (gitignored)
 ├── .env.example
 ├── CLAUDE.md              # next-session playbook for Claude Code
@@ -72,9 +72,9 @@ See **TUTORIAL.md**. The short version:
 1. Create a Meta app, enable **Use Cases → Access the Threads API**.
 2. Add yourself as a **Threads tester** and accept on threads.net.
 3. `cp .env.example .env`; fill `THREADS_CLIENT_ID` / `THREADS_CLIENT_SECRET`.
-4. `make worker-deploy` (worker code is committed; KV namespace ID in
-   `wrangler.toml` is tied to *this* account -- if you fork, create your own
-   via `wrangler kv namespace create THREADS_AUTH`).
+4. `cp cloudflare-worker/wrangler.toml.example cloudflare-worker/wrangler.toml`,
+   then `wrangler kv namespace create THREADS_AUTH` and paste the returned id
+   into `wrangler.toml`. Then `make worker-deploy`.
 5. Register `https://<your-worker>.workers.dev/callback` under **Use Cases →
    Customize → Settings → Redirect Callback URLs**. ⚠️ The field is a
    chip-input: type the URL then **press Enter** before saving.

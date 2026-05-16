@@ -135,7 +135,7 @@ THREADS_TOKEN_EXPIRES_AT                     # unix ts; `make whoami` shows rema
 ## Cloudflare Worker
 
 - Already deployed; URL is in `$THREADS_WORKER_BASE` in `.env` (gitignored). Don't paste the literal URL here.
-- Source: `cloudflare-worker/src/index.js`. Config: `cloudflare-worker/wrangler.toml`.
+- Source: `cloudflare-worker/src/index.js`. Config: `cloudflare-worker/wrangler.toml` (gitignored; copy from `wrangler.toml.example`).
 - KV namespace `THREADS_AUTH` stores OAuth codes keyed by `state` (TTL 10min).
 - **Don't redeploy** unless code/config actually changed.
 - Logs: `make worker-tail`.

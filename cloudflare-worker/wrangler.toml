@@ -1,7 +1,0 @@
-name = "threads-cb"
-main = "src/index.js"
-compatibility_date = "2025-01-01"
-
-[[kv_namespaces]]
-binding = "THREADS_AUTH"
-id = "ce588a27086642bc844f664907abe4f6"

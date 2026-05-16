@@ -79,11 +79,11 @@ then polls `/poll` until the code arrives.
 npm i -g wrangler        # or: pnpm add -g wrangler
 wrangler login
 
-# create the KV namespace (only first time; the ID is in cloudflare-worker/wrangler.toml --
-# if you forked this repo, recreate your own and replace the id)
+# first-time setup: copy the template, then create your own KV namespace
 cd cloudflare-worker
+cp wrangler.toml.example wrangler.toml
 wrangler kv namespace create THREADS_AUTH
-# -> copy the id into wrangler.toml under [[kv_namespaces]]
+# -> copy the returned id into wrangler.toml under [[kv_namespaces]]
 
 wrangler deploy
 # Deployed threads-cb triggers https://threads-cb.<your-account>.workers.dev

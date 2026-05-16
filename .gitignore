@@ -14,6 +14,7 @@ __pycache__/
 cloudflare-worker/.wrangler/
 cloudflare-worker/node_modules/
 cloudflare-worker/.dev.vars
+cloudflare-worker/wrangler.toml
 
 # OS / editor
 .DS_Store

@@ -1,0 +1,11 @@
+# Copy to wrangler.toml and fill in the KV namespace id.
+#   wrangler kv namespace create THREADS_AUTH
+# -> paste the returned id below.
+
+name = "threads-cb"
+main = "src/index.js"
+compatibility_date = "2025-01-01"
+
+[[kv_namespaces]]
+binding = "THREADS_AUTH"
+id = "<your-kv-namespace-id>"
