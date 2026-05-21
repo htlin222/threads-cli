@@ -106,6 +106,13 @@ dashboard** and/or **App Review**:
 - `make oembed` (needs full App Review under "oEmbed Read")
 - `make hide` / `make unhide` (manage_reply POST is gated even with the scope; subcode 4279017)
 
+`make replies` returns `code 100` "The app associated with this request is in
+dev mode" — `/{id}/replies` requires the app to be promoted to production
+mode. The CLI auto-falls back to `/{id}/conversation` and filters direct
+children, so `make replies` still works; you'll see one stderr line `note:
+/replies gated in dev mode, falling back to /conversation`. No action needed
+unless you want the raw `/replies` response.
+
 `make pending-replies` returns `code 100` ("Reply approvals must be enabled
 for this media") — it's a **per-post opt-in**, not a global gate. Only works
 if the thread's author enabled reply approvals on that specific post.
@@ -169,6 +176,21 @@ tests/             pytest suite; `make test` (no network)
 Adding endpoints: helper in `threads_lib.py` (raises `ApiError`/`ValidationError`,
 never calls `sys.exit`), thin `cmd_*` in `threads.py`, argparse subparser, Make
 target, pytest test with `responses`-mocked HTTP.
+
+### Reading long output from Claude Code
+
+When invoked via Claude Code's Bash tool, `make <target>` output is silently
+truncated around line 50 with `(N lines truncated)` — the harness, not the
+script, is doing it. The full data is there; you just can't see it. To
+recover the full output:
+
+- Call the script directly: `uv run threads.py conversation <id>` (bypasses
+  `make`'s wrapper and the truncation), **or**
+- Redirect to a tmp file and Read it: `make conversation ID=<id> > /tmp/out.txt 2>&1`.
+
+`_print_thread_list` is unpaginated, so the file always contains the full
+response. Use this for any list reader (`conversation`, `my-replies`,
+`mentions`, `pending-replies`, `replies`).
 
 ## Anti-patterns
 

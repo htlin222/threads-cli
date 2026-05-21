@@ -95,6 +95,7 @@ action") in dev mode even with a fresh re-auth, because they need additional
 | `make oembed`        | `code 10` / `subcode 4279067`                 | Full App Review under "oEmbed Read"                            |
 | `make hide` / `make unhide` (`/manage_reply`) | `code 10` / `subcode 4279017` | App Review even though `threads_manage_replies` scope is granted |
 | `make pending-replies` | `code 100` "Reply approvals must be enabled" | Per-post toggle — only works on threads where the author opted in to reply approvals |
+| `make replies` | `code 100` "app is in dev mode" | App must be in production mode. The CLI auto-falls back to `/{id}/conversation` and filters direct children, so `make replies` still works transparently — you'll see one `note: /replies gated…` line on stderr. |
 | `make limits` | (works, but values lag) | Eventually-consistent; Meta caches ~minute latency. Re-read in a bit if numbers look off. |
 
 If the user hits `code 10` on these, the fix is **not** in this repo — they
@@ -158,6 +159,21 @@ When adding a new endpoint:
 2. Add a thin `cmd_*` in `threads.py` that calls it.
 3. Add an argparse subparser + Make target.
 4. Add a pytest test for the helper (use `responses` to mock HTTP).
+
+### Reading long output from Claude Code
+
+When invoked via Claude Code's Bash tool, `make <target>` output is silently
+truncated around line 50 with `(N lines truncated)` — the Makefile and script
+aren't doing this, it's the harness. The data is all there; you just can't
+see it. To get the full output:
+
+- Call the script directly: `uv run threads.py conversation <id>` (skips
+  `make`'s wrapper and avoids the cut), **or**
+- Redirect to a tmp file and Read it: `make conversation ID=<id> > /tmp/out.txt 2>&1`.
+
+`_print_thread_list` is unpaginated, so the file always contains the full
+response. Use this for any list reader: `conversation`, `my-replies`,
+`mentions`, `pending-replies`.
 
 ## Anti-patterns
 

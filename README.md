@@ -1,5 +1,7 @@
 # threads-cli
 
+![threads-cli — terminal-driven Threads API client with a Cloudflare Worker OAuth relay](docs/cover.png)
+
 Minimal Threads API client with a Cloudflare Worker as the OAuth callback relay.
 Covers most of the official API surface from the command line: publish (text /
 image / video / carousel / reply / quote), read, search, manage replies, get

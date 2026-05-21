@@ -258,11 +258,33 @@ def cmd_limits(args: argparse.Namespace) -> None:
 def cmd_replies(args: argparse.Namespace) -> None:
     cfg = Config.load(ENV_PATH)
     token = cfg.require("THREADS_ACCESS_TOKEN")[0]
-    _print_thread_list(gget(
-        f"/{args.id}/replies", token,
-        fields="id,text,permalink,timestamp,username,media_type,hide_status",
-        reverse=str(args.reverse).lower(),
-    ))
+    try:
+        data = gget(
+            f"/{args.id}/replies", token,
+            fields="id,text,permalink,timestamp,username,media_type,hide_status",
+            reverse=str(args.reverse).lower(),
+        )
+    except ApiError as e:
+        if e.code != 100 or "dev mode" not in (e.message or "").lower():
+            raise
+        print(
+            "note: /replies gated in dev mode, falling back to /conversation",
+            file=sys.stderr,
+        )
+        conv = gget(
+            f"/{args.id}/conversation", token,
+            fields="id,text,permalink,timestamp,username,media_type,"
+                   "hide_status,replied_to",
+            reverse=str(args.reverse).lower(),
+        )
+        data = {
+            "data": [
+                t for t in conv.get("data", [])
+                if (t.get("replied_to") or {}).get("id") == args.id
+            ],
+            "paging": conv.get("paging", {}),
+        }
+    _print_thread_list(data)
 
 
 def cmd_conversation(args: argparse.Namespace) -> None:
