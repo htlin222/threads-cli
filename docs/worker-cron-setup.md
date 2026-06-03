@@ -96,6 +96,52 @@ make worker-tail            # cron: posted thread <id> (key=...)
 make list LIMIT=5           # cross-check from the CLI
 ```
 
+## Feed contract (what to build)
+
+The worker reads only a few fields. **`title` is the literal post text**; `url` is
+appended as a link. Everything else is ignored.
+
+### JSON Feed (recommended)
+
+```json
+{
+  "version": "https://jsonfeed.org/version/1.1",
+  "title": "Threads cron source",
+  "items": [
+    {
+      "id": "2026-06-04-001",
+      "title": "This whole string becomes the Threads post body.",
+      "url": "https://example.com/permalink/1",
+      "date_published": "2026-06-04T10:00:00Z"
+    }
+  ]
+}
+```
+
+| Item field | Required | Role |
+| --- | --- | --- |
+| `title` | yes | The post text. Posted as `title` + blank line + `url`, truncated to **500 chars**. |
+| `url` | recommended | Appended as the link. Omit → post is just `title`. |
+| `id` | strongly recommended | **De-dup key** — must be stable & unique. Omit → key = `SHA-256(url+title)`. |
+| `date_published` | recommended | ISO-8601; worker sorts newest-first and posts the newest unseen. Omit from all → array order is used (put newest first). |
+
+Top-level must be a JSON object (`{`) with an `items` array. Served as
+`Content-Type: application/json`, or any body starting with `{`.
+
+### Behaviors to design around
+
+1. **One item per tick** — the worker posts only the newest `id` it hasn't seen, not the
+   whole feed.
+2. **`id` stability is everything** — a changed `id` (or, without `id`, a changed
+   `title`/`url`) reposts. Emit a stable `id` per logical item.
+3. **`title` is the literal post** — `content_text`/`content_html`/`summary` are ignored.
+4. The 500-char cap covers `title` + `"\n\n"` + `url` combined.
+
+### RSS / Atom equivalent
+
+Worker reads `<title>`, `<link>` (RSS text or Atom `href`), `<guid>`/`<id>` (de-dup key),
+`<pubDate>`/`<updated>` (sort). Same semantics; JSON Feed is easier to get right.
+
 ## Operating notes
 
 - **Volume vs quota:** hourly + one-item-per-tick = ≤24 posts/day, far under the
