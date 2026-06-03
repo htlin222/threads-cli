@@ -123,6 +123,13 @@ chars only when you need to show progress.
 - **Don't redeploy** unless source/config changed. If needed: `make worker-deploy`.
 - KV namespace `THREADS_AUTH` stores OAuth codes keyed by `state` (TTL 10min).
 - Logs: `make worker-tail`.
+- **Scheduled posting** (optional): the worker's `scheduled()` handler cron-posts the
+  newest item from `FEED_URL` to Threads. Token lives in KV (`token:*` keys) and
+  self-refreshes; de-dup via `feed:seen`. Setup is `make worker-seed-token` + a
+  `[triggers]`/`[vars]` block in `wrangler.toml`. Start with `DRY_RUN="1"`. Full
+  walkthrough: TUTORIAL.md > "Scheduled posting (Cloudflare cron)". This is independent
+  of the OAuth-relay routes — don't confuse the `code:<state>` keys (OAuth) with the
+  `token:*` / `feed:seen` keys (cron).
 
 ## Recovery / debug ladder
 

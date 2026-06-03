@@ -21,7 +21,7 @@ POST_FLAGS := \
   search location-search location-get oembed \
   insights user-insights \
   auth refresh whoami debug-token \
-  smoke worker-deploy worker-tail worker-delete env-check test
+  smoke worker-deploy worker-tail worker-delete worker-seed-token env-check test
 
 help: ## show this help
 	@echo "Threads API CLI -- 'make <target>' wraps 'uv run threads.py <subcmd>'"
@@ -76,6 +76,7 @@ help: ## show this help
 	@echo "Worker:"
 	@echo "  make worker-deploy                redeploy Cloudflare worker"
 	@echo "  make worker-tail                  tail worker logs"
+	@echo "  make worker-seed-token            push .env token into worker KV (for cron posting)"
 	@echo ""
 	@echo "Demo:"
 	@echo "  make smoke                        full C/R/D smoke test"
@@ -210,6 +211,15 @@ worker-tail:
 
 worker-delete:
 	cd cloudflare-worker && wrangler delete
+
+worker-seed-token: ## push .env token/user/expiry into worker KV (one-time bootstrap for cron)
+	@set -a; . ./.env; set +a; \
+	test -n "$$THREADS_ACCESS_TOKEN" || { echo "THREADS_ACCESS_TOKEN empty in .env -- run 'make auth' first"; exit 1; }; \
+	cd cloudflare-worker && \
+	wrangler kv key put --remote --binding THREADS_AUTH token:access     "$$THREADS_ACCESS_TOKEN" && \
+	wrangler kv key put --remote --binding THREADS_AUTH token:user_id    "$$THREADS_USER_ID" && \
+	wrangler kv key put --remote --binding THREADS_AUTH token:expires_at "$$THREADS_TOKEN_EXPIRES_AT" && \
+	echo "seeded token:access / token:user_id / token:expires_at into THREADS_AUTH KV"
 
 env-check: ## verify required keys are present in .env
 	@test -f .env || (echo ".env missing -- copy .env.example and fill credentials"; exit 1)

@@ -163,6 +163,52 @@ make delete ID=<thread_id>
 
 ---
 
+## Scheduled posting (Cloudflare cron)
+
+The same worker that relays OAuth can also **post on a schedule**. Its `scheduled()`
+handler (in `cloudflare-worker/src/index.js`) fires on a cron trigger, fetches a feed,
+and posts the newest item it hasn't posted before — fully server-side, no laptop needed.
+
+How it differs from the CLI: the worker reads the access token from **KV**, not `.env`,
+and **self-refreshes** it (so it survives the 60-day window without you running
+`make refresh`). De-dup is a rolling 200-key seen-set in KV, keyed by feed `guid`/`id`
+(or a SHA-256 of link+title when the feed has no id) — robust against feed reordering,
+multiple new items at once, and republished entries.
+
+**One-time setup:**
+
+```bash
+# 1. Seed the worker's KV with your current token (reads .env -> KV).
+#    Run after `make auth`/`make refresh` so the token is fresh.
+make worker-seed-token
+
+# 2. Point it at a feed and choose a cadence. Edit cloudflare-worker/wrangler.toml:
+#      [triggers] crons = ["0 * * * *"]      # hourly (or "0 9 * * *" for daily 09:00 UTC)
+#      [vars]    FEED_URL = "https://.../feed.json"   # JSON Feed, RSS, or Atom
+#                DRY_RUN  = "1"               # build the post but DON'T publish (test first)
+
+# 3. Deploy.
+make worker-deploy
+
+# 4. Verify in dry-run: trigger once (CF dashboard "Trigger" button) and watch the log.
+make worker-tail        # look for: cron DRY_RUN: would post (key=...) ...
+
+# 5. Go live: set DRY_RUN = "0" in wrangler.toml, `make worker-deploy` again.
+```
+
+**Notes & gotchas:**
+
+- Volume: hourly + "one unseen item per tick" is ≤24 posts/day, far under the 250/24h
+  quota. Most ticks post nothing (feed unchanged → `cron: no new item`).
+- The worker becomes the token owner. After it self-refreshes, your local `.env` token
+  is **stale** — that's expected. Only re-run `make worker-seed-token` if you revoke and
+  `make auth` afresh.
+- No Meta client secret is needed at runtime; refresh uses only the token itself.
+- Inspect KV state: `cd cloudflare-worker && wrangler kv key get --remote --binding THREADS_AUTH feed:seen`.
+- Turn it off: delete the `[triggers]` block and redeploy (or `make worker-delete`).
+
+---
+
 ## API endpoints used
 
 Base: `https://graph.threads.net/v1.0` (plus `https://graph.threads.net/oauth/...` for OAuth/token).

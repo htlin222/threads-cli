@@ -9,3 +9,14 @@ compatibility_date = "2025-01-01"
 [[kv_namespaces]]
 binding = "THREADS_AUTH"
 id = "<your-kv-namespace-id>"
+
+# ---- Scheduled posting (optional) ------------------------------------------
+# Hourly cron that fetches FEED_URL and posts the newest unseen item to Threads.
+# Disable by removing this [triggers] block. The access token is read from the
+# THREADS_AUTH KV namespace (seed it once with `make worker-seed-token`).
+[triggers]
+crons = ["0 * * * *"] # hourly; e.g. "0 9 * * *" for daily 09:00 UTC
+
+[vars]
+FEED_URL = "https://example.com/feed.json" # JSON Feed or RSS/Atom; set to your real feed
+DRY_RUN  = "0"                             # "1" = build the post but skip publish (test mode)
