@@ -178,7 +178,8 @@ The user's browser must already be logged into `developers.facebook.com`.
 2. Open the relevant app → left nav **使用案例 (Use Cases)** → the **存取
    Threads API** card → **自訂 (Customize)**. The settings live under the
    **設定 (Settings)** sub-tab (next to **權限和功能 / Permissions**).
-3. Read the **設定** tab and compare to `.env`:
+3. Read the **設定** tab and compare to `.env` (field layout:
+   `docs/threads-usecase-settings.png`):
 
    | Dashboard field            | `.env` key              | Check                                           |
    | -------------------------- | ----------------------- | ----------------------------------------------- |

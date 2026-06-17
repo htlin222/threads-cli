@@ -127,6 +127,13 @@ THREADS_WORKER_BASE=https://threads-cb.<your-account>.workers.dev
 
 Back in **Use Cases → Customize → Access the Threads API → Settings**, fill:
 
+![Threads use case "設定" tab — Threads App ID / Secret up top, then the three callback URL fields (重新導向 / 解除安裝 / 刪除回呼網址) and the user-token generator below](docs/threads-usecase-settings.png)
+
+> The same page also shows **Threads 應用程式編號 / Threads App ID** (top-left) —
+> that's your `THREADS_CLIENT_ID`, a *separate* number from the Meta App ID on the
+> app card. The **用戶權杖產生器** at the bottom lists your accepted Threads testers.
+
+
 | Field                            | Value                                                              |
 | -------------------------------- | ------------------------------------------------------------------ |
 | **重新導向回呼網址 (Redirect)**  | `https://threads-cb.<your-account>.workers.dev/callback`           |
