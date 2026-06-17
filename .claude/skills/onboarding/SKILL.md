@@ -156,6 +156,57 @@ THREADS_TOKEN_EXPIRES_AT                     # unix ts; `make whoami` shows rema
 5. `make worker-tail` then re-run `make auth` — if worker `/poll` times out,
    verify the Meta-dashboard redirect URI still matches `THREADS_REDIRECT_URI`.
 
+## Settings health-check co-pilot (Kimi WebBridge)
+
+When the user can't post / auth and `make env-check` + `make whoami` don't
+explain why, the cause is often a **mismatch between the Meta dashboard and
+`.env`** (wrong Threads App ID, redirect URI drift, a use case not enabled).
+You can read the dashboard directly via **Kimi WebBridge** (the `/kimi-webbridge`
+skill) and diff it against `.env` — *read-only*. This is a co-pilot, **not**
+unattended automation: never click **Save** or change any setting on the user's
+production Meta account.
+
+**Precondition.** `~/.kimi-webbridge/bin/kimi-webbridge status` must show
+`running:true` + `extension_connected:true`. If not, follow the kimi-webbridge
+skill's routing table (`start` the daemon; ask the user to open their browser).
+The user's browser must already be logged into `developers.facebook.com`.
+
+**Procedure (all read-only):**
+
+1. `navigate` to `https://developers.facebook.com/apps/` and `snapshot` /
+   `evaluate` the app list. Note each app's **Meta App ID** (on the card).
+2. Open the relevant app → left nav **使用案例 (Use Cases)** → the **存取
+   Threads API** card → **自訂 (Customize)**. The settings live under the
+   **設定 (Settings)** sub-tab (next to **權限和功能 / Permissions**).
+3. Read the **設定** tab and compare to `.env`:
+
+   | Dashboard field            | `.env` key              | Check                                           |
+   | -------------------------- | ----------------------- | ----------------------------------------------- |
+   | **Threads 應用程式編號**    | `THREADS_CLIENT_ID`     | must match — and this is **NOT** the Meta App ID on the dashboard card; it's a *separate* Threads-specific id |
+   | **重新導向回呼網址**        | `THREADS_REDIRECT_URI`  | exact string match (no trailing-slash drift)    |
+   | 解除安裝 / 刪除回呼網址     | —                       | just non-empty                                  |
+   | Threads 應用程式密鑰        | `THREADS_CLIENT_SECRET` | dashboard masks it (`●●●●`); don't try to read it |
+4. Read the **權限和功能 (Permissions)** sub-tab: confirm every scope in
+   `SCOPES` above is present/「可供測試」. A scope the repo requests but that's
+   missing here is why OAuth silently drops it (`make debug-token` confirms what
+   was actually granted). Gated extras (search / mentions / location / oembed /
+   manage_reply) only light up after the use case is enabled + App Review.
+
+**Gotchas (verified live):**
+
+- The Bash `curl` output to the daemon gets **truncated at ~213 bytes** (an
+  `rtk`/hook artifact). Drive the daemon with **python `urllib`** to
+  `http://127.0.0.1:10086/command` instead, or write to a file and `Read` it.
+- The **設定** sub-tab is a lazy-loaded SPA panel: the `?selected_tab=settings`
+  URL param alone doesn't render the form. `click` the **設定** button (`@e`
+  ref from `snapshot`) and wait ~4s before reading.
+- The 4 `<iframe>`s on the apps page are 0×0 `referer_frame.php` tracking
+  pixels — the real content is in the **top frame**, so `evaluate` on
+  `document.body.innerText` reads it fine.
+- Login / 2FA / captcha / OAuth-approve and the redirect-URI **chip-input
+  Enter** all need *trusted* events — WebBridge can't drive them. Hand those
+  steps to the user; only *read* state to verify.
+
 ## Quota model (from `make limits`)
 
 | Counter             | Limit    | Counts                                                              |

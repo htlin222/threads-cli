@@ -33,7 +33,7 @@ Worker as the OAuth callback relay. The user's typical request is *"post X"*,
 | "embed <permalink>"                                              | `make oembed URL=<permalink>`                          |
 | "whoami" / "token 還在嗎"                                         | `make whoami`                                          |
 | "refresh token"                                                  | `make refresh`                                         |
-| "re-auth" / "重抓 token" / token expired                          | `make auth`                                            |
+| "re-auth" / "重抓 token" / token expired                          | `make auth` (no-worker setup: `make auth-manual`)      |
 | "smoke test"                                                     | `make smoke`                                           |
 
 `make help` always prints the up-to-date list. Run from the repo root.
@@ -136,9 +136,27 @@ chars only when you need to show progress.
 1. `make env-check` — required keys present?
 2. `make whoami` — token still valid? (also prints expiry)
 3. `make refresh` — extends long-lived token; retry the call.
-4. `make auth` — full OAuth (browser approval).
+4. `make auth` — full OAuth (browser approval). If this `.env` was set up the
+   no-worker way (`THREADS_WORKER_BASE` blank, redirect is a GitHub Pages URL),
+   use `make auth-manual` — it skips the worker poll and prompts you to paste
+   the redirect URL/code. See TUTORIAL.md > "Alternative: no Cloudflare".
 5. `make worker-tail` then re-run `make auth` — verify worker route + Meta-side
-   redirect URI in `.env` still match.
+   redirect URI in `.env` still match. (Worker route only.)
+
+### Settings health-check co-pilot (Kimi WebBridge)
+
+When env-check/whoami can't explain an auth failure, the cause is often a
+**Meta-dashboard ↔ `.env` mismatch**. You can read the dashboard via the
+`/kimi-webbridge` skill and diff it — **read-only**; never click Save or change
+the user's production settings. Open the app → 使用案例 → 存取 Threads API →
+自訂 → **設定** tab, then compare: **Threads 應用程式編號** == `THREADS_CLIENT_ID`
+(this is a *separate* id from the Meta App ID on the dashboard card — the classic
+gotcha), **重新導向回呼網址** == `THREADS_REDIRECT_URI` (exact match), and the
+**權限和功能** tab lists every scope in `SCOPES`. Gotchas: drive the daemon with
+python `urllib` not `curl` (curl output truncates at ~213 bytes); the 設定 tab is
+a lazy SPA — `click` it and wait ~4s; login/2FA/chip-input Enter need trusted
+events WebBridge can't produce (hand those to the user). Full procedure: the
+`onboarding` skill > "Settings health-check co-pilot".
 
 ## Quota model
 

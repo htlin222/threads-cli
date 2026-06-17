@@ -8,6 +8,33 @@ is what it takes to get there the first time.
 
 ---
 
+## Prerequisites
+
+Before Step 1, have these. The walkthrough assumes them and won't stop to install them.
+
+| Need                     | Why                                            | Check / get it                                            |
+| ------------------------ | ---------------------------------------------- | -------------------------------------------------------- |
+| **Python 3.10+ + `uv`**  | runs `threads.py` (every `make` target)        | `uv --version` · install: <https://docs.astral.sh/uv/>   |
+| **Node + npm** (or pnpm) | only to install/run `wrangler` (the CF route)  | `node -v` — **skip if you use the GitHub Pages route**   |
+| **A Meta developer account** | create the Threads app + credentials       | <https://developers.facebook.com/>                       |
+| **A Threads account**    | the account you'll post as; added as a tester  | <https://www.threads.net/>                               |
+| **One HTTPS redirect endpoint** | Meta requires a registered HTTPS `redirect_uri` to hand back the OAuth `code` | pick **one** route below |
+
+That last row is the only real architectural choice. Two routes, same end state:
+
+| Route                          | Account needed     | `code` capture        | Steps |
+| ------------------------------ | ------------------ | --------------------- | ----- |
+| **Cloudflare Worker** (default) | a Cloudflare account | **automatic** (CLI polls the worker) | Step 4 |
+| **GitHub Pages** (no worker)   | a GitHub account (you likely have one) | **manual** (you paste the URL once) | ["Alternative" below](#alternative-no-cloudflare-github-pages--manual-paste) |
+
+Why an HTTPS endpoint is unavoidable: the Threads OAuth `redirect_uri` **must be
+real HTTPS and pre-registered with Meta** (so `http://localhost` is out). The CLI
+can't receive Meta's redirect directly, so *something* at a stable HTTPS URL has to
+catch the `?code=...`. The Worker does it automatically; GitHub Pages just shows you
+the code to paste. There is no zero-account path — that constraint is Meta's, not this repo's.
+
+---
+
 ## Why the Cloudflare Worker?
 
 The Threads OAuth flow needs a `redirect_uri` that:
@@ -145,6 +172,82 @@ make post MSG="hello world"
 make list LIMIT=3
 make delete ID=<thread_id>
 ```
+
+---
+
+## Alternative: no Cloudflare (GitHub Pages + manual paste)
+
+Don't want a Cloudflare account? You still need a registered HTTPS `redirect_uri`,
+but it can be a **static page you already host for free** — GitHub Pages works
+perfectly. The trade-off vs. the Worker: you copy the `code` out of the browser
+once, by hand, instead of the CLI grabbing it automatically. No KV, no `wrangler`,
+no Node.
+
+This **replaces Steps 4–6** above. Steps 1–3 (Meta app, tester, credentials) and
+Step 7 (posting) are identical.
+
+### A4. Get a stable HTTPS URL from GitHub Pages
+
+Any GitHub repo with Pages enabled gives you `https://<user>.github.io/<repo>/`.
+
+1. Create (or reuse) a repo, e.g. `threads-cb`.
+2. Add a single `index.html` so the landing page actually shows the code instead of a
+   bare 404 (optional but friendlier — the code is in the address bar regardless):
+
+   ```html
+   <!doctype html><meta charset="utf-8"><title>Threads OAuth</title>
+   <body style="font:16px system-ui;padding:2rem">
+   <h1>Copy this whole URL back into your terminal ↑</h1>
+   <p>The OAuth <code>code</code> is in the address bar after <code>?code=</code>.</p>
+   ```
+3. **Settings → Pages → Build from branch → `main` / root**, save. Wait ~1 min,
+   then confirm `https://<user>.github.io/<repo>/` loads over HTTPS.
+
+> The page doesn't need to *do* anything. Meta only validates that the redirect URL
+> is HTTPS and matches what's registered; it never calls it server-side. After
+> approval the browser just lands there with `?code=...&state=...` appended, and you
+> read it off the address bar.
+
+Put it in `.env` (leave `THREADS_WORKER_BASE` blank — manual mode doesn't use it):
+
+```ini
+THREADS_REDIRECT_URI=https://<user>.github.io/<repo>/
+THREADS_WORKER_BASE=
+```
+
+### A5. Register that URL in Meta
+
+Exactly like Step 5 above, but the value is your Pages URL:
+
+| Field                            | Value                                  |
+| -------------------------------- | -------------------------------------- |
+| **重新導向回呼網址 (Redirect)**  | `https://<user>.github.io/<repo>/`     |
+| 解除安裝 / 刪除回呼網址          | any non-empty URL (same Pages URL is fine) |
+
+⚠️ Same chip-input gotcha: **paste, press Enter, then Save.**
+
+### A6. Auth in manual mode
+
+```bash
+make auth-manual          # == uv run threads.py auth --manual
+```
+
+This:
+
+1. Prints the OAuth URL and opens your browser.
+2. You approve → Meta redirects to your GitHub Pages URL with `?code=...` appended.
+3. **Copy the full address-bar URL** (or just the `code` value) and paste it at the
+   `redirect URL or code>` prompt.
+4. The CLI parses the code (`extract_code` strips the `#_` suffix and pulls `code`
+   out of a full URL), then does the same short→long token exchange as Step 6.
+
+From here, `make post`/`make refresh`/everything else is identical — they all read
+the saved long-lived token, not the redirect path. You only ever touch manual mode
+again if the long-lived token fully expires (>60d) and you need a fresh `make auth-manual`.
+
+> Note: the scheduled-posting cron (next section) is a **Cloudflare Worker feature**.
+> If you went the GitHub Pages route you have no worker, so cron posting isn't
+> available — the CLI itself is fully functional regardless.
 
 ---
 

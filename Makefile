@@ -67,7 +67,8 @@ help: ## show this help
 	@echo "  make user-insights [METRIC=...] [SINCE=ts] [UNTIL=ts] [BREAKDOWN=country|...]"
 	@echo ""
 	@echo "Auth / token:"
-	@echo "  make auth                         OAuth -> long-lived token"
+	@echo "  make auth                         OAuth -> long-lived token (Cloudflare worker)"
+	@echo "  make auth-manual                  OAuth w/o worker; paste redirect URL/code"
 	@echo "  make refresh                      refresh long-lived token (every <60d)"
 	@echo "  make whoami                       GET /me + token expiry"
 	@echo "  make debug-token                  inspect access token"
@@ -185,6 +186,9 @@ user-insights: ## user-level insights; usage: make user-insights [METRIC=...] [S
 
 auth: ## OAuth flow -> long-lived token
 	$(RUN) threads.py auth
+
+auth-manual: ## OAuth flow w/o worker; paste redirect URL/code yourself
+	$(RUN) threads.py auth --manual
 
 refresh: ## refresh long-lived token (call every <60d)
 	$(RUN) threads.py refresh

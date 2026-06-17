@@ -37,7 +37,7 @@ from threads_lib import (
     GRAPH, REPLY_CONTROL_VALUES, SCOPES,
     build_auth_url, build_post_params,
     exchange_code_for_short_token, exchange_to_long_lived,
-    fmt_expiry, gdelete, gget, gpost,
+    extract_code, fmt_expiry, gdelete, gget, gpost,
     infer_carousel_item_type,
     persist_token, poll_worker_for_code, refresh_long_lived,
     wait_for_container_ready,
@@ -54,11 +54,20 @@ def pp(obj) -> None:
 
 def cmd_auth(args: argparse.Namespace) -> None:
     cfg = Config.load(ENV_PATH)
-    client_id, redirect_uri, worker_base = cfg.require(
-        "THREADS_CLIENT_ID", "THREADS_REDIRECT_URI", "THREADS_WORKER_BASE"
-    )
     scopes = args.scopes or ",".join(SCOPES)
     state = secrets.token_urlsafe(32)
+    # Manual mode skips the Cloudflare Worker entirely: you paste the redirect
+    # URL (or bare code) yourself. Only the redirect_uri needs to be a real,
+    # registered HTTPS endpoint -- e.g. a static GitHub Pages URL. No worker.
+    if args.manual:
+        client_id, redirect_uri = cfg.require(
+            "THREADS_CLIENT_ID", "THREADS_REDIRECT_URI"
+        )
+        worker_base = None
+    else:
+        client_id, redirect_uri, worker_base = cfg.require(
+            "THREADS_CLIENT_ID", "THREADS_REDIRECT_URI", "THREADS_WORKER_BASE"
+        )
     url = build_auth_url(client_id, redirect_uri, scopes, state)
     print("\n=== AUTHORIZE ===")
     print("Opening this URL in your browser (approve to continue):\n")
@@ -68,8 +77,15 @@ def cmd_auth(args: argparse.Namespace) -> None:
         webbrowser.open(url)
     except Exception:
         pass
-    code = poll_worker_for_code(worker_base, state)
-    print("[ok] worker captured code, exchanging for short-lived token...")
+    if args.manual:
+        print("After you approve, the browser lands on your redirect URL with")
+        print("?code=...&state=... in the address bar. Copy that whole URL")
+        print("(or just the code) and paste it here:\n")
+        code = extract_code(input("redirect URL or code> "))
+        print("[ok] code parsed, exchanging for short-lived token...")
+    else:
+        code = poll_worker_for_code(worker_base, state)
+        print("[ok] worker captured code, exchanging for short-lived token...")
     short = exchange_code_for_short_token(cfg, code)
     short_token = short["access_token"]
     user_id = str(short.get("user_id", ""))
@@ -420,6 +436,12 @@ def build_parser() -> argparse.ArgumentParser:
 
     a = sub.add_parser("auth", help="OAuth flow -> long-lived token")
     a.add_argument("--scopes", help=f"comma list; default: {','.join(SCOPES)}")
+    a.add_argument(
+        "--manual", action="store_true",
+        help="paste the redirect URL/code yourself instead of polling the "
+             "Cloudflare Worker (no worker needed; use any registered HTTPS "
+             "redirect_uri, e.g. GitHub Pages)",
+    )
     a.set_defaults(func=cmd_auth)
 
     sub.add_parser("refresh").set_defaults(func=cmd_refresh)

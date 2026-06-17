@@ -62,14 +62,16 @@ make auth                   # full OAuth flow (open browser; if token >60d or sc
 | **Manage**           | `hide`, `unhide`, `delete`                                                         |
 | **Discover**         | `search`, `location-search`, `location-get`, `oembed`                              |
 | **Insights**         | `insights`, `user-insights`                                                        |
-| **Token / auth**     | `auth`, `refresh`, `whoami`, `debug-token`                                         |
+| **Token / auth**     | `auth`, `auth-manual`, `refresh`, `whoami`, `debug-token`                          |
 | **Worker / env**     | `worker-deploy`, `worker-tail`, `env-check`, `smoke`                               |
 
 `make help` always prints the up-to-date list with usage.
 
 ## First-time setup
 
-See **TUTORIAL.md**. The short version:
+See **TUTORIAL.md** (it now opens with a **Prerequisites** checklist —
+Python+`uv`, a Meta account, a Threads account, and *one* HTTPS redirect
+endpoint). The short version:
 
 1. Create a Meta app, enable **Use Cases → Access the Threads API**.
 2. Add yourself as a **Threads tester** and accept on threads.net.
@@ -83,6 +85,17 @@ See **TUTORIAL.md**. The short version:
 6. `make auth` -- approves in browser, worker captures `code`, script exchanges
    for a 60-day long-lived token.
 7. `make post MSG="hello world"`.
+
+### Don't want a Cloudflare account?
+
+Steps 4–6 set up the Worker so the CLI can grab the OAuth `code` automatically.
+You can skip it: register **any** stable HTTPS page as the redirect (e.g. a free
+**GitHub Pages** URL), leave `THREADS_WORKER_BASE` blank, and run
+`make auth-manual` — you paste the redirect URL/code by hand once instead. Meta
+just requires *some* registered HTTPS `redirect_uri`; it doesn't have to be a
+worker. Full walkthrough: **TUTORIAL.md → "Alternative: no Cloudflare (GitHub
+Pages + manual paste)"**. (Trade-off: the scheduled-posting cron is a Worker
+feature, so it's unavailable on the GitHub Pages route.)
 
 ## SCOPES requested by `make auth`
 
