@@ -20,3 +20,12 @@ crons = ["0 * * * *"] # hourly; e.g. "0 9 * * *" for daily 09:00 UTC
 [vars]
 FEED_URL = "https://example.com/feed.json" # JSON Feed or RSS/Atom; set to your real feed
 DRY_RUN  = "0"                             # "1" = build the post but skip publish (test mode)
+
+# ---- Webhooks (optional) ---------------------------------------------------
+# /webhook handles Meta's verification handshake + event delivery (Moderate, etc.).
+# WEBHOOK_VERIFY_TOKEN must match the "驗證權杖" you enter in the dashboard webhook
+# config. Generate one with: openssl rand -hex 24
+# For POST payload authenticity, also set the app secret as a Worker secret:
+#   wrangler secret put THREADS_APP_SECRET
+# (if unset, the signature check is skipped with a warning).
+WEBHOOK_VERIFY_TOKEN = "<your-random-verify-token>"

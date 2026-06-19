@@ -3,6 +3,11 @@
 // GET /callback?code=...&state=...  ->  stashes the code in KV keyed by state.
 // GET /poll?state=...                ->  returns the code (204 if not yet present),
 //                                        deletes it on read (single-use).
+// GET /webhook?hub.*                  ->  Meta webhook verification handshake; echoes
+//                                        hub.challenge when hub.verify_token matches.
+// POST /webhook                       ->  receives subscription events (Moderate, etc.);
+//                                        verifies X-Hub-Signature-256 if THREADS_APP_SECRET
+//                                        is set, stashes the last payload in KV.
 //
 // The Python script generates a random `state` per run, embeds it in the auth URL,
 // then polls /poll?state=<same value> until it gets the code. No shared secret on
@@ -49,6 +54,50 @@ export default {
       });
     }
 
+    if (url.pathname === "/webhook") {
+      // --- Verification handshake (GET) ---
+      if (request.method === "GET") {
+        const mode = url.searchParams.get("hub.mode");
+        const token = url.searchParams.get("hub.verify_token");
+        const challenge = url.searchParams.get("hub.challenge");
+        if (mode === "subscribe" && token && token === env.WEBHOOK_VERIFY_TOKEN) {
+          return new Response(challenge || "", {
+            status: 200,
+            headers: { "content-type": "text/plain" },
+          });
+        }
+        return new Response("verification failed", { status: 403 });
+      }
+
+      // --- Event delivery (POST) ---
+      if (request.method === "POST") {
+        const raw = await request.text();
+        if (env.THREADS_APP_SECRET) {
+          const ok = await verifySignature(
+            request.headers.get("x-hub-signature-256"),
+            raw,
+            env.THREADS_APP_SECRET
+          );
+          if (!ok) {
+            console.error("webhook: bad X-Hub-Signature-256, rejecting");
+            return new Response("invalid signature", { status: 401 });
+          }
+        } else {
+          console.warn(
+            "webhook: THREADS_APP_SECRET not set -- skipping signature check"
+          );
+        }
+        console.log(`webhook event: ${raw}`);
+        // Keep the most recent payload around for inspection (7-day TTL).
+        await env.THREADS_AUTH.put("webhook:last", raw, {
+          expirationTtl: 604800,
+        });
+        return new Response("EVENT_RECEIVED", { status: 200 });
+      }
+
+      return new Response("method not allowed", { status: 405 });
+    }
+
     if (url.pathname === "/" || url.pathname === "/health") {
       return new Response("threads-cb worker ok", { status: 200 });
     }
@@ -62,6 +111,32 @@ export default {
     ctx.waitUntil(runCron(env));
   },
 };
+
+// ---------- Webhook signature ----------
+
+// Meta signs webhook POST bodies as "sha256=<hex hmac>" using the app secret.
+async function verifySignature(header, body, secret) {
+  if (!header || !header.startsWith("sha256=")) return false;
+  const expected = header.slice("sha256=".length);
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"]
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(body));
+  const hex = [...new Uint8Array(sig)]
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  if (hex.length !== expected.length) return false;
+  let diff = 0;
+  for (let i = 0; i < hex.length; i++) {
+    diff |= hex.charCodeAt(i) ^ expected.charCodeAt(i);
+  }
+  return diff === 0;
+}
 
 // ---------- Scheduled posting ----------
 
